@@ -30,17 +30,27 @@ class Vector2
 
 class Useful
 {
-    static MesuringString(string, font)
+    static MesuringString(spritebatch, string, font)
     { 
+        let tmp = spritebatch.font;
         spritebatch.font = font;   
-        let stringWidth = spritebatch.measureText(string).width;
-        let stringHeight = spritebatch.measureText(string).height;
-        return [stringWidth, stringHeight];
+
+        let metrics = spritebatch.measureText(string);
+        //let fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+        let actualHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+
+        spritebatch.font = tmp;
+        return new Vector2(metrics.width, actualHeight);
     }
     
     static Rand(a, b)
     {
         return  Math.floor(Math.abs((b - a) + 1) * Math.random() + Math.min(a, b));
+    }
+
+    static Contain(pos, size, point)
+    {
+        return point.x >= pos.x && point.x <= pos.x + size.x && point.y >= pos.y && point.y <= pos.y + size.y;
     }
 }
 
@@ -101,6 +111,22 @@ let mousePos = new Vector2(0, 0);
 
 const blockImageOffset = new Vector2(10, 10);
 const blockImageSizeOnCanvas = new Vector2(900, 900);
+const infoOffsetX = 15;
+const infoHeightPercentage = 0.5;
+const validateButtonSize = new Vector2(250, 100);
+const validateButtonColorHover = new Color(210, 210, 210);
+const validateButtonColor = new Color(170, 170, 170);
+const infoFontColor = new Color(255, 255, 255);
+const colorPaletteItemGap = new Vector2(15, 15);
+const paintingColours = [
+    new Color(255, 255, 255), new Color(0, 0, 0), new Color(255, 147, 39),
+    new Color(128, 255, 0), new Color(255, 0, 255), new Color(128, 0, 255),
+    new Color(255, 0, 0), new Color(14, 77, 241), new Color(127, 127, 127),
+    new Color(0, 255, 255), new Color(255, 118, 0), new Color(207, 48, 52),
+    new Color(0, 128, 0), new Color(128, 64, 64), new Color(200, 200, 200),
+    new Color(154, 85, 200)
+];
+const paintingColoursSize = new Vector2(4, 4);
 
 let infoFontSize = 30;
 let oldDate, newDate;
@@ -158,6 +184,8 @@ function Update()
     DrawCurrentImage();
 
     DrawRightInfo();
+
+    DrawColorPalette();
 
     onMouseClick = false;
 }
@@ -218,10 +246,109 @@ function DrawRightInfo()
 {
     spritebatch.lineWidth = (lineThinckness * 4).toString();
     spritebatch.strokeStyle = gridColor.ToString();
-    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x, blockImageOffset.y,
-        canvas.width - blockImageSizeOnCanvas.x - 3 * blockImageOffset.x, blockImageSizeOnCanvas.y);
+    let recSize = new Vector2(canvas.width - blockImageSizeOnCanvas.x - 3 * blockImageOffset.x, blockImageSizeOnCanvas.y)
+    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x, blockImageOffset.y, recSize.x, recSize.y);
 
-    
+    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + 10, blockImageOffset.y + 10,
+        recSize.x - 20, recSize.y * infoHeightPercentage);
+
+    let infoNbPixels = "nombre de pixels : " + nbPixelBuy.toString();
+    let infoCost = "Coût total : " + EvaluateCost().toString();
+    let infoOwnPercentage = "Pourcentage : " + ((nbPixelBuy * 100.0) / (blockChainImageSize.x * blockChainImageSize.y)).toString() + "%";
+    let infos = [infoNbPixels, infoCost, infoOwnPercentage];
+
+    let ttSizeY = 0;
+    for (let i = 0; i < infos.length; i++) 
+    {
+        let size = Useful.MesuringString(spritebatch, infos[i],  infoFontSize.toString() + "px serif");
+        ttSizeY += size.y;
+    }
+
+    let yStep = (blockImageSizeOnCanvas.y * infoHeightPercentage - validateButtonSize.y) / (infos.length + 1);
+    for (let i = 0; i < infos.length; i++) 
+    {
+        let x = blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + infoOffsetX;
+        let y = yStep * (i + 1);
+        spritebatch.font = infoFontSize.toString() + "px serif";
+        spritebatch.fillStyle = infoFontColor.ToString();
+        spritebatch.fillText(infos[i], x, y);
+    }
+
+    //le bouton validé
+    let tmpSize = canvas.width - blockImageSizeOnCanvas.x - 2 * blockImageOffset.x;
+    let x = blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + ((tmpSize - validateButtonSize.x)/2);
+    let y = infoHeightPercentage * blockImageSizeOnCanvas.y - validateButtonSize.y;
+
+    let containMouse = Useful.Contain(new Vector2(x, y), validateButtonSize, mousePos);
+    let textColor;
+    if(containMouse)
+    {
+        spritebatch.fillStyle = validateButtonColorHover.ToString();
+        textColor = validateButtonColor;
+    }  
+    else
+    {
+        spritebatch.fillStyle = validateButtonColor.ToString();
+        textColor = validateButtonColorHover;
+    }  
+    spritebatch.fillRect(x, y, validateButtonSize.x, validateButtonSize.y);
+
+    spritebatch.font = (infoFontSize * 1.2).toString() + "px serif";
+    spritebatch.fillStyle = textColor.ToString();
+    let textSize = Useful.MesuringString(spritebatch, "Validé", spritebatch.font);
+
+    spritebatch.fillText("Validé", x + (validateButtonSize.x - textSize.x) * 0.5, y + ((validateButtonSize.y + textSize.y) * 0.5));
+
+    if(containMouse && onMouseClick)
+    {
+        BuyAllPixels();
+    }
+}
+
+function DrawColorPalette()
+{
+    const x = 3 * blockImageOffset.x + blockImageSizeOnCanvas.x;
+    const y = 10 + 2 * blockImageOffset.y + infoHeightPercentage * blockImageSizeOnCanvas.y;
+    let posTopRight = new Vector2(x, y);
+    let sizeX = canvas.width - blockImageSizeOnCanvas.x - 5 * blockImageOffset.x;
+    let sizeY = blockImageSizeOnCanvas.y - 3 * blockImageOffset.y - infoHeightPercentage * blockImageSizeOnCanvas.y;
+    let ttSize = new Vector2(sizeX, sizeY);
+
+    spritebatch.lineWidth = (lineThinckness * 4).toString();
+    spritebatch.strokeStyle = gridColor.ToString();
+    spritebatch.strokeRect(x, y, sizeX, sizeY);
+
+    let itemSizeX = (ttSize.x - (2 * blockImageOffset.x) - (colorPaletteItemGap.x * (paintingColoursSize.x + 1))) /paintingColoursSize.x; 
+    let itemSizeY = (ttSize.y - (2 * blockImageOffset.y) - (colorPaletteItemGap.y * (paintingColoursSize.y + 1))) /paintingColoursSize.y; 
+
+    for(let i = 0; i < paintingColoursSize.x; i++)
+    {
+        for(let j = 0; j < paintingColoursSize.y; j++)
+        {
+            let tmpX = x + colorPaletteItemGap.x + i * (colorPaletteItemGap.x + itemSizeX);
+            let tmpY = y + colorPaletteItemGap.y + j * (colorPaletteItemGap.y + itemSizeY);
+            spritebatch.strokeRect(tmpX, tmpY, itemSizeX, itemSizeY);
+
+            let colorItem = paintingColours[i * paintingColoursSize.x + j];
+            spritebatch.fillStyle = colorItem.ToString();
+            spritebatch.fillRect(tmpX + 2, tmpY + 2, itemSizeX - 4, itemSizeY - 4);
+
+            if(onMouseClick && Useful.Contain(new Vector2(tmpX + 2, tmpY + 2), new Vector2(itemSizeX - 4, itemSizeY - 4), mousePos))
+            {
+                selectedColor = colorItem;
+            }
+        }
+    }
+}
+
+function EvaluateCost()
+{
+    return nbPixelBuy * 0.5;
+}
+
+function BuyAllPixels()
+{
+
 }
 
 function Keypressed(keynumber)
@@ -247,7 +374,6 @@ function MouseDown(evt)
 {
     SetMousePosition(canvas, evt);
     isMouseDown = true;
-    console.log("Mousedown");
 }
 
 function MouseUp(evt)
