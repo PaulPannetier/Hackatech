@@ -52,6 +52,11 @@ class Useful
     {
         return point.x >= pos.x && point.x <= pos.x + size.x && point.y >= pos.y && point.y <= pos.y + size.y;
     }
+
+    static Lerp(a, b, t)
+    {
+        return (b - a) * t + a;
+    }
 }
 
 class Pixels
@@ -104,22 +109,28 @@ class BlockChainImage
     }
 }
 
+//import React from "react";
+import * as W3 from "./node_modules/@massalabs/massa-web3";
+//import { App } from "./web3Client";
+//const func = require("./web3Client");
+
 const canvas = document.getElementById('canvas');//on recup le canvas
 const spritebatch = canvas.getContext("2d");
 let dt;
 let mousePos = new Vector2(0, 0);
 
+const blockChainAdress = "A1MNwcvtsBYqZqqzvhDdWcG5Z6dNKhw5Gvp2AQpWR1uqd4v3L9K";
 const blockImageOffset = new Vector2(10, 10);
-const blockImageSizeOnCanvas = new Vector2(900, 900);
+const blockImageSizeOnCanvas = new Vector2(900 , 900);
 const infoOffsetX = 15;
 const infoHeightPercentage = 0.5;
 const validateButtonSize = new Vector2(250, 100);
 const validateButtonColorHover = new Color(210, 210, 210);
 const validateButtonColor = new Color(170, 170, 170);
 const infoFontColor = new Color(255, 255, 255);
-const colorPaletteItemGap = new Vector2(15, 15);
+const colorPaletteItemGap = new Vector2(25, 20);
 const paintingColours = [
-    new Color(255, 255, 255), new Color(0, 0, 0), new Color(255, 147, 39),
+    new Color(255, 255, 255), new Color(0, 0, 0), new Color(255, 242, 5),
     new Color(128, 255, 0), new Color(255, 0, 255), new Color(128, 0, 255),
     new Color(255, 0, 0), new Color(14, 77, 241), new Color(127, 127, 127),
     new Color(0, 255, 255), new Color(255, 118, 0), new Color(207, 48, 52),
@@ -127,31 +138,41 @@ const paintingColours = [
     new Color(154, 85, 200)
 ];
 const paintingColoursSize = new Vector2(4, 4);
+const minPixelprice = 0.05, maxPixelPrice = 1.5;
 
 let infoFontSize = 30;
 let oldDate, newDate;
 let blockChainImage;
-let blockChainImageSize = new Vector2(10, 10);
+let blockChainImageSize = new Vector2(16, 16);
 let selectedColor;
 let bgColor = new Color(49, 82, 184);
 let onMouseClick = false, isMouseDown = false;
 let gridColor = new Color(100, 100, 100);
 let lineThinckness = 1;
 let nbPixelBuy;
+let userId = 85475;
 
 const emptyImage = new Image();
 emptyImage.src = "./Asset/empty.png";
+const web3Client = new W3.Web3Client();
 
 function Start()
 {
     oldDate = new Date();
     blockChainImage = new BlockChainImage(blockChainImageSize.x, blockChainImageSize.y);
+    LoadBlockChainImage();
     selectedColor = new Color(255, 0, 0);
     nbPixelBuy = 0;
+    selectedColor = paintingColours[0];
+
     Render();
 }
 
-//la game loop
+function LoadBlockChainImage()
+{
+
+}
+
 function Render()
 {
     newDate = new Date();
@@ -186,6 +207,10 @@ function Update()
     DrawRightInfo();
 
     DrawColorPalette();
+    
+    spritebatch.font = "50px serif";
+    spritebatch.fillStyle = "rgb(0, 0, 0)";
+    spritebatch.fillText(mess, 100, 100);
 
     onMouseClick = false;
 }
@@ -236,7 +261,7 @@ function DrawCurrentImage()
             if(blockChainImage != null && blockChainImage != undefined && blockChainImage.pixels[x][y]!= null)
             {
                 spritebatch.fillStyle = blockChainImage.pixels[x][y].ToString();
-                spritebatch.fillRect(x * step.x + blockImageOffset.x, y * step.y + blockImageOffset.y, step.x, step.y);
+                spritebatch.fillRect(x * step.x + blockImageOffset.x, y * step.y + blockImageOffset.y, step.x + 1, step.y + 1);
             }
         }
     }
@@ -247,14 +272,14 @@ function DrawRightInfo()
     spritebatch.lineWidth = (lineThinckness * 4).toString();
     spritebatch.strokeStyle = gridColor.ToString();
     let recSize = new Vector2(canvas.width - blockImageSizeOnCanvas.x - 3 * blockImageOffset.x, blockImageSizeOnCanvas.y)
-    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x, blockImageOffset.y, recSize.x, recSize.y);
+    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + 100, blockImageOffset.y, recSize.x - 100, recSize.y);
 
-    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + 10, blockImageOffset.y + 10,
-        recSize.x - 20, recSize.y * infoHeightPercentage);
+    spritebatch.strokeRect(blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + 10 + 100, blockImageOffset.y + 10,
+        recSize.x - 20 - 100, recSize.y * infoHeightPercentage);
 
-    let infoNbPixels = "nombre de pixels : " + nbPixelBuy.toString();
+    let infoNbPixels = "Nombre de pixels : " + nbPixelBuy.toString();
     let infoCost = "Coût total : " + EvaluateCost().toString();
-    let infoOwnPercentage = "Pourcentage : " + ((nbPixelBuy * 100.0) / (blockChainImageSize.x * blockChainImageSize.y)).toString() + "%";
+    let infoOwnPercentage = "Pourcentage d'acquisition : " + EvaluateOwningPercentage().toString() + "%";
     let infos = [infoNbPixels, infoCost, infoOwnPercentage];
 
     let ttSizeY = 0;
@@ -271,7 +296,7 @@ function DrawRightInfo()
         let y = yStep * (i + 1);
         spritebatch.font = infoFontSize.toString() + "px serif";
         spritebatch.fillStyle = infoFontColor.ToString();
-        spritebatch.fillText(infos[i], x, y);
+        spritebatch.fillText(infos[i], x + 100, y);
     }
 
     //le bouton validé
@@ -279,7 +304,7 @@ function DrawRightInfo()
     let x = blockImageSizeOnCanvas.x + 2 * blockImageOffset.x + ((tmpSize - validateButtonSize.x)/2);
     let y = infoHeightPercentage * blockImageSizeOnCanvas.y - validateButtonSize.y;
 
-    let containMouse = Useful.Contain(new Vector2(x, y), validateButtonSize, mousePos);
+    let containMouse = Useful.Contain(new Vector2(x + 100, y), validateButtonSize, mousePos);
     let textColor;
     if(containMouse)
     {
@@ -291,16 +316,16 @@ function DrawRightInfo()
         spritebatch.fillStyle = validateButtonColor.ToString();
         textColor = validateButtonColorHover;
     }  
-    spritebatch.fillRect(x, y, validateButtonSize.x, validateButtonSize.y);
+    spritebatch.fillRect(x + 100, y, validateButtonSize.x, validateButtonSize.y);
 
     spritebatch.font = (infoFontSize * 1.2).toString() + "px serif";
     spritebatch.fillStyle = textColor.ToString();
     let textSize = Useful.MesuringString(spritebatch, "Validé", spritebatch.font);
 
-    spritebatch.fillText("Validé", x + (validateButtonSize.x - textSize.x) * 0.5, y + ((validateButtonSize.y + textSize.y) * 0.5));
+    spritebatch.fillText("Validé", x + 100 + (validateButtonSize.x - textSize.x) * 0.5, y + ((validateButtonSize.y + textSize.y) * 0.5));
 
     if(containMouse && onMouseClick)
-    {
+    {        
         BuyAllPixels();
     }
 }
@@ -310,15 +335,15 @@ function DrawColorPalette()
     const x = 3 * blockImageOffset.x + blockImageSizeOnCanvas.x;
     const y = 10 + 2 * blockImageOffset.y + infoHeightPercentage * blockImageSizeOnCanvas.y;
     let posTopRight = new Vector2(x, y);
-    let sizeX = canvas.width - blockImageSizeOnCanvas.x - 5 * blockImageOffset.x;
+    let sizeX = canvas.width - blockImageSizeOnCanvas.x - 5 * blockImageOffset.x - 100;
     let sizeY = blockImageSizeOnCanvas.y - 3 * blockImageOffset.y - infoHeightPercentage * blockImageSizeOnCanvas.y;
     let ttSize = new Vector2(sizeX, sizeY);
 
     spritebatch.lineWidth = (lineThinckness * 4).toString();
     spritebatch.strokeStyle = gridColor.ToString();
-    spritebatch.strokeRect(x, y, sizeX, sizeY);
+    spritebatch.strokeRect(x + 100, y, sizeX, sizeY);
 
-    let itemSizeX = (ttSize.x - (2 * blockImageOffset.x) - (colorPaletteItemGap.x * (paintingColoursSize.x + 1))) /paintingColoursSize.x; 
+    let itemSizeX = (ttSize.x - (2 * blockImageOffset.x) - (colorPaletteItemGap.x * (paintingColoursSize.x + 1))) /paintingColoursSize.x;
     let itemSizeY = (ttSize.y - (2 * blockImageOffset.y) - (colorPaletteItemGap.y * (paintingColoursSize.y + 1))) /paintingColoursSize.y; 
 
     for(let i = 0; i < paintingColoursSize.x; i++)
@@ -327,13 +352,13 @@ function DrawColorPalette()
         {
             let tmpX = x + colorPaletteItemGap.x + i * (colorPaletteItemGap.x + itemSizeX);
             let tmpY = y + colorPaletteItemGap.y + j * (colorPaletteItemGap.y + itemSizeY);
-            spritebatch.strokeRect(tmpX, tmpY, itemSizeX, itemSizeY);
+            spritebatch.strokeRect(tmpX + 100, tmpY, itemSizeX, itemSizeY);
 
             let colorItem = paintingColours[i * paintingColoursSize.x + j];
             spritebatch.fillStyle = colorItem.ToString();
-            spritebatch.fillRect(tmpX + 2, tmpY + 2, itemSizeX - 4, itemSizeY - 4);
+            spritebatch.fillRect(tmpX + 2 + 100, tmpY + 2, itemSizeX - 4, itemSizeY - 4);
 
-            if(onMouseClick && Useful.Contain(new Vector2(tmpX + 2, tmpY + 2), new Vector2(itemSizeX - 4, itemSizeY - 4), mousePos))
+            if(onMouseClick && Useful.Contain(new Vector2(tmpX + 2 + 100, tmpY + 2), new Vector2(itemSizeX - 4, itemSizeY - 4), mousePos))
             {
                 selectedColor = colorItem;
             }
@@ -343,16 +368,76 @@ function DrawColorPalette()
 
 function EvaluateCost()
 {
-    return nbPixelBuy * 0.5;
+    let pixelFull = 0, pixelEmpty = 0;
+
+    for(let x = 0; x < blockChainImageSize.x; x++)
+    {
+        for(let y = 0; y < blockChainImageSize.y; y++)
+        {
+            if(blockChainImage != null && blockChainImage != undefined && blockChainImage.pixels[x][y]!= null)
+            {
+                pixelFull++;
+            }
+            else
+            {
+                pixelEmpty++;
+            }
+        }
+    }
+
+    pixelFull -= nbPixelBuy;
+    pixelEmpty += nbPixelBuy;
+    let cost = 0;
+
+    for(let i = 0; i < nbPixelBuy; i++)
+    {
+        cost += Useful.Lerp(minPixelprice, maxPixelPrice, pixelFull / (pixelEmpty + pixelFull));
+        pixelFull++;
+        pixelEmpty--;
+    }
+
+    return Math.round(cost * 100.0) / 100.0;
+}
+
+function EvaluateOwningPercentage()
+{
+    return Math.round(10000.0 * nbPixelBuy / (blockChainImageSize.x * blockChainImageSize.y)) / 100.0;
 }
 
 function BuyAllPixels()
 {
+    for(let x = 0; x < blockChainImageSize.x; x++)
+    {
+        for(let y = 0; y < blockChainImageSize.y; y++)
+        {
+            if(blockChainImage != null && blockChainImage != undefined && blockChainImage.pixels[x][y] != null)
+            {
+                HandleSubmit(x, y, blockChainImage.pixels[x][y]);
+            }
+        }
+    }
+}
 
+let mess;
+
+async function HandleSubmit(x, y, color)
+{
+    let message = x.toString() + "," + y.toString() + "," + color.R.toString() + "," + color.G.toString() + "," + color.B.toString();
+    const data = await W3.web3Client.smartContracts().callSmartContract({
+        fee: 0,
+        gasPrice: 0,
+        maxGas: 2000000,
+        coins: 0,
+        targetAddress: blockChainAdress,
+        functionName: "setColor",
+        parameter: message,
+    });
+    mess = data;
 }
 
 function Keypressed(keynumber)
 {
+    return;
     switch(keynumber.code)
     {
         case "KeyW":
