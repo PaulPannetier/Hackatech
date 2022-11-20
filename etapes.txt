@@ -1,4 +1,0 @@
-npm run build (main.ts -> wasm)
-npm run deploy (envoie le wasm sur la blockchain)
-npm run build:caller (caller.ts -> wasm)
-npm run deploy build/caller.wasm (lance caller.wasm et permet de lancer des fonctions de la blockchain)
