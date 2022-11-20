@@ -110,7 +110,7 @@ class BlockChainImage
 }
 
 //import React from "react";
-import * as W3 from "./node_modules/@massalabs/massa-web3";
+//import * as W3 from "./node_modules/@massalabs/massa-web3";
 //import { App } from "./web3Client";
 //const func = require("./web3Client");
 
@@ -143,7 +143,7 @@ const minPixelprice = 0.05, maxPixelPrice = 1.5;
 let infoFontSize = 30;
 let oldDate, newDate;
 let blockChainImage;
-let blockChainImageSize = new Vector2(16, 16);
+let blockChainImageSize = new Vector2(10, 10);
 let selectedColor;
 let bgColor = new Color(49, 82, 184);
 let onMouseClick = false, isMouseDown = false;
@@ -154,7 +154,7 @@ let userId = 85475;
 
 const emptyImage = new Image();
 emptyImage.src = "./Asset/empty.png";
-const web3Client = new W3.Web3Client();
+//const web3Client = new W3.Web3Client();
 
 function Start()
 {
@@ -208,10 +208,6 @@ function Update()
 
     DrawColorPalette();
     
-    spritebatch.font = "50px serif";
-    spritebatch.fillStyle = "rgb(0, 0, 0)";
-    spritebatch.fillText(mess, 100, 100);
-
     onMouseClick = false;
 }
 
@@ -422,6 +418,7 @@ let mess;
 
 async function HandleSubmit(x, y, color)
 {
+    return;
     let message = x.toString() + "," + y.toString() + "," + color.R.toString() + "," + color.G.toString() + "," + color.B.toString();
     const data = await W3.web3Client.smartContracts().callSmartContract({
         fee: 0,
